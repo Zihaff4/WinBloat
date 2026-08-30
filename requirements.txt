@@ -1,0 +1,21 @@
+# No external Python dependencies are currently required.
+
+#
+
+# This project uses only Python standard library modules:
+
+# - subprocess
+
+# - ctypes
+
+# - sys
+
+# - os
+
+# - time
+
+#
+
+# Optional dependency for building an executable:
+
+# pyinstaller
