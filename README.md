@@ -1,6 +1,6 @@
 # WinBloat
 
-> **Note:** This README(all file except the main python files i created that myself but i did use ai for some problem) file was created with the help of AI because I don't really understand GitHub yet :). This project is also purely for learning how to execute CMD or PowerShell commands from Python. I'm not very good at coding yet, so please don't mind the messy code --- :)
+> **Note:** This README file was created with the help of AI because I don't really understand GitHub yet :). This project is also purely for learning how to execute CMD or PowerShell commands from Python. I'm not very good at coding yet, so please don't mind the messy code --- :)
 
 A simple Windows post-installation automation tool that helps set up a fresh Windows installation.
 
