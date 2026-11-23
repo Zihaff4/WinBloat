@@ -1,0 +1,17 @@
+# One Winget package ID per line.
+# Lines beginning with # are ignored.
+Google.Chrome
+Notepad++.Notepad++
+Microsoft.VisualStudioCode
+Microsoft.PowerShell
+7zip.7zip
+Discord.Discord.PTB
+Valve.Steam
+9P8LTPGCBZXD
+VideoLAN.VLC
+Git.Git
+OpenVPNTechnologies.OpenVPNConnect
+Cloudflare.Warp
+Oracle.VirtualBox
+Python.Python.3
+Roblox.Roblox
