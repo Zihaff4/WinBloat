@@ -1,8 +1,13 @@
 import subprocess
 import ctypes
 import sys
-import os
 import time
+from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+APPS_FILE = SCRIPT_DIR / "apps.txt"
+WINUTIL_CONFIG_FILE = SCRIPT_DIR / "winutil-config.json"
 
 
 def check_admin() -> bool:
@@ -23,58 +28,95 @@ def check_admin() -> bool:
 def run_cmd(cmd_list):
     cmd_log = []
     cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", cmd_list]
-    runs = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    runs = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
 
-    current_line = []
+    screen_line = []
+    redrawing = False
+    
     while True:
         char = runs.stdout.read(1)
-        
+
         if char == "" and runs.poll() is not None:
             break
-            
-        if char:
-            print(char, end="", flush=True) 
-            current_line.append(char)
-            
-            if char in ("\n", "\r"):
-                cmd_log.append("".join(current_line))
-                current_line = []
 
-    if current_line:
-        cmd_log.append("".join(current_line))
+        if char:
+            print(char, end="", flush=True)
+
+            if char == "\r":
+                # A carriage return redraws the current terminal line.
+                redrawing = True
+            elif char == "\n":
+                line = "".join(screen_line)
+                cmd_log.append(line + "\n")
+                screen_line = []
+                redrawing = False
+            else:
+                if redrawing:
+                    # Keep CRLF text intact, but replace the previous frame
+                    # as soon as the next progress redraw begins.
+                    screen_line = []
+                    redrawing = False
+                screen_line.append(char)
+
+    if screen_line:
+        cmd_log.append("".join(screen_line))
 
     return_code = runs.wait()
 
     with open("command_output.txt", "a", encoding="utf-8") as log_file:
         log_file.writelines(cmd_log)
         
-    return return_code
+    return return_code 
 
 def run_chris_titus():
-    print("\n[+] Launching Chris Titus WinUtil GUI...")
-    subprocess.run(["powershell.exe", "-Command", "irm christitus.com/win | iex"])
-    print("[+] WinUtil closed. Continuing script...")
+    print("\n[+] Applying Chris Titus WinUtil configuration...")
+
+    if not WINUTIL_CONFIG_FILE.is_file():
+        print(f"[!] WinUtil config file not found: {WINUTIL_CONFIG_FILE}")
+        return 1
+
+    config_path = str(WINUTIL_CONFIG_FILE).replace("'", "''")
+    winutil_cmd = (
+        "& ([ScriptBlock]::Create((irm 'https://christitus.com/win'))) "
+        f"-Config '{config_path}'"
+    )
+    return_code = run_cmd(winutil_cmd)
+    if return_code == 0:
+        print("[+] WinUtil configuration applied.")
+    else:
+        print(f"[!] WinUtil configuration failed with exit code {return_code}.")
+    return return_code
+
+
+def load_apps():
+    if not APPS_FILE.is_file():
+        raise FileNotFoundError(f"App list file not found: {APPS_FILE}")
+
+    apps = []
+    with APPS_FILE.open("r", encoding="utf-8") as app_file:
+        for line in app_file:
+            app = line.strip()
+            if app and not app.startswith("#"):
+                apps.append(app)
+
+    if not apps:
+        raise ValueError(f"No app IDs found in {APPS_FILE}")
+
+    return apps
+
 
 def app_process():
-    apps_to_isntall = [
-        "Google.Chrome",
-        "Notepad++.Notepad++",
-        "Microsoft.VisualStudioCode",
-        "Microsoft.PowerShell",
-        "7zip.7zip",
-        "Discord.Discord.PTB",
-        "Valve.Steam",
-        "9P8LTPGCBZXD",
-        "VideoLAN.VLC",
-        "Git.Git",
-        "OpenVPNTechnologies.OpenVPNConnect",
-        "Cloudflare.Warp",
-        "Oracle.VirtualBox",
-        "Python.Python.3",
-        "Roblox.Roblox"
-    ]
-    print("[+]Installing Phase")
-    for app in apps_to_isntall:
+    apps_to_install = load_apps()
+    print("[+] Installing Phase")
+    for app in apps_to_install:
         print(f"[+]Installing {app}")
         win_cmd = f"winget install --id {app} --silent --accept-source-agreements --accept-package-agreements --exact"
         run_cmd(win_cmd)
