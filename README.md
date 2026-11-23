@@ -1,118 +1,100 @@
 # WinBloat
 
-A simple Windows post-installation automation tool that helps set up a fresh Windows installation.
+A post-installation Windows 11 setup, debloating, and application deployment tool written in Python.
 
-WinBloat automatically installs commonly used applications using Windows Package Manager (`winget`) and provides access to Chris Titus Tech's WinUtil for additional Windows configuration.
+## Overview
 
-> ⚠️ This tool requires Administrator privileges.
+`WinBloat` streamlines setting up a fresh Windows 11 environment by automatically requesting administrator privileges, installing applications defined in a customizable list via `winget`, and applying pre-configured system tweaks through Chris Titus Tech's Windows Utility (`winutil`).
 
-## Features
-
-* 🔐 Automatically requests Administrator privileges
-* 📦 Installs applications automatically using `winget`
-* ⚡ Uses silent installation where supported
-* 📜 Saves command output to a log file
-* 🛠️ Launches Chris Titus Tech's WinUtil
-* 🖥️ Designed for fresh Windows installations
-* 🐍 Written in Python
-
-## Applications Installed
-
-The current version installs:
-
-* Google Chrome
-* Notepad++
-* Visual Studio Code
-* Microsoft PowerShell
-* 7-Zip
-* Discord PTB
-* Steam
-* VideoLAN VLC
-* Git
-* OpenVPN Connect
-* Cloudflare WARP
-* Oracle VirtualBox
-* Python
-* Roblox
-
-Some Microsoft Store applications may also be included depending on their Winget package ID.
-
-## Requirements
-
-* Windows 10 or Windows 11
-* Python 3
-* Administrator privileges
-* Internet connection
-* Windows Package Manager (`winget`)
-
-## Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/YOUR-USERNAME/WinBloat.git
-```
-
-Go into the project folder:
-
-```bash
-cd WinBloat
-```
-
-Run the program:
-
-```bash
-python main.py
-```
-
-The program will automatically request Administrator privileges if needed.
-
-## How It Works
-
-1. The program checks for Administrator privileges.
-2. If Administrator privileges are not available, it requests elevation.
-3. The application installation process begins.
-4. Applications are installed using `winget`.
-5. Command output is saved to `command_output.txt`.
-6. Chris Titus Tech's WinUtil is launched.
-7. The program exits after completion.
-
-## Building an EXE
-
-You can convert the program into a standalone executable using PyInstaller.
-
-Install PyInstaller:
-
-```bash
-pip install pyinstaller
-```
-
-Build the executable:
-
-```bash
-pyinstaller --onefile --uac-admin --name WinBloat main.py
-```
-
-The executable will be created inside the `dist` folder.
-
-## Important Notes
-
-* This project executes system-level commands and should be used carefully.
-* Administrator privileges are required.
-* Application availability depends on Winget repositories.
-* Some applications may already be installed and will be skipped by Winget.
-* WinUtil is downloaded and executed through PowerShell, so an active internet connection is required.
-
-## Disclaimer
-
-This project is intended for personal use and educational purposes. Always review scripts before running them with Administrator privileges.
-
-This project is not affiliated with Microsoft, Winget, Chris Titus Tech, or any of the applications installed by the script.
-
-## License
-
-This project is licensed under the MIT License.
+### What's New in v2.0.0
+* **Dynamic App List (`apps.txt`):** Add or remove `winget` package IDs directly inside `apps.txt` without modifying the Python source code. Comment lines starting with `#` and blank lines are ignored.
+* **Pre-Saved WinUtil Configuration (`winutil-config.json`):** Automatically passes a local configuration file (`-Config`) to Chris Titus WinUtil so system optimization settings are applied consistently.
+* **Terminal Output Logging:** Captures command execution output to `command_output.txt` while handling carriage-return progress redraws cleanly in the console.
 
 ---
 
-Made with Python for easier Windows setup.
+## Repository Structure
+
+* `fun.py` — Main Python script handling UAC elevation, `winget` package installation, and Chris Titus WinUtil execution.
+* `apps.txt` — Line-delimited list of `winget` package IDs to install (supports `#` comments).
+* `winutil-config.json` — Pre-saved configuration file passed to Chris Titus WinUtil (place alongside `fun.py` and `apps.txt`).
+* `command_output.txt` — Generated automatically when commands run to log PowerShell/`winget`/WinUtil output.
+* Compiled executable / release artifacts — Built for standalone execution on Windows.
+
+---
+
+## Prerequisites
+
+* **OS:** Windows 11
+* **Package Manager:** `winget` (App Installer) available in PowerShell
+* **Privileges:** Administrator rights (the script attempts automatic UAC elevation via `ShellExecuteW(..., "runas", ...)` if not already elevated)
+* **Network Access:** Required to fetch `winget` packages and run `https://christitus.com/win`
+* **For running from source:** Python 3
+
+---
+
+## Usage
+
+### 1. Customize Applications (`apps.txt`)
+Edit `apps.txt` and list one `winget` package ID per line. Example entries include:
+
+```text
+# One Winget package ID per line.
+# Lines beginning with # are ignored.
+Google.Chrome
+Notepad++.Notepad++
+Microsoft.VisualStudioCode
+Microsoft.PowerShell
+7zip.7zip
+Discord.Discord.PTB
+Valve.Steam
+9P8LTPGCBZXD
+VideoLAN.VLC
+Git.Git
+OpenVPNTechnologies.OpenVPNConnect
+Cloudflare.Warp
+Oracle.VirtualBox
+Python.Python.3
+Roblox.Roblox
+```
+
+### 2. Add Your WinUtil Config (`winutil-config.json`)
+Place your exported/pre-saved `winutil-config.json` file in the same directory as the script or executable.
+* If `winutil-config.json` is missing, `run_chris_titus()` reports that the file was not found and exits with code `1`.
+
+### 3. Run the Tool
+Run the compiled executable or run the Python script from the project directory:
+
+```powershell
+python .\fun.py
+```
+
+If the current session is not elevated, Windows will prompt for administrator approval and relaunch the process.
+
+---
+
+## How It Works
+
+1. **Admin Check (`check_admin`):** Uses `ctypes.windll.shell32.IsUserAnAdmin()` to verify elevation. If not running as administrator, it triggers `ShellExecuteW` with `"runas"`.
+2. **App Installation (`load_apps` & `app_process`):** Reads `apps.txt` using UTF-8 encoding, skips blank and `#`-prefixed lines, and executes:
+   ```powershell
+   winget install --id <PackageID> --silent --accept-source-agreements --accept-package-agreements --exact
+   ```
+   for each package.
+3. **System Optimization (`run_chris_titus`):** Verifies `winutil-config.json` exists in the script directory and runs:
+   ```powershell
+   & ([ScriptBlock]::Create((irm 'https://christitus.com/win'))) -Config '<path-to-winutil-config.json>'
+   ```
+   via PowerShell (`-NoProfile -NonInteractive`).
+
+---
+
+## Notes & Troubleshooting
+
+* **Keep config files in the same folder:** Both `apps.txt` and `winutil-config.json` are resolved relative to the script/executable directory (`Path(__file__).resolve().parent`).
+* **Review tweaks before applying:** Chris Titus WinUtil modifies Windows services, privacy/telemetry settings, and system behavior—always inspect your `winutil-config.json` before running it on a production or primary machine.
+* **Logs:** Check `command_output.txt` in the working directory for detailed output from `winget` and PowerShell commands.
+
+## Author & Links
+
+* **GitHub:** [Zihaff4/WinBloat](https://github.com/Zihaff4/WinBloat)
